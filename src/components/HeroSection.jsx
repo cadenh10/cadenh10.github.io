@@ -1,6 +1,6 @@
 export default function HeroSection() {
   return (
-    <section className="relative isolate overflow-visible pb-20 pt-10 md:pb-28 md:pt-12 lg:pb-32">
+    <section className="relative isolate overflow-visible pb-16 pt-10 md:pb-24 md:pt-12 lg:pb-24">
       {/* Full-bleed ambient layer — sibling to content, never inside max-width/clipped wrappers */}
       <div
         className="pointer-events-none absolute inset-0 z-0 overflow-visible"
