@@ -13,7 +13,7 @@ export default function HeroSection() {
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-screen-xl px-6 md:px-10 lg:px-12">
-        <div id="waitlist" className="max-w-xl">
+        <div className="max-w-xl">
           <h1 className="text-5xl font-bold tracking-tight text-white md:text-6xl lg:text-7xl">
             Dial in.
           </h1>
