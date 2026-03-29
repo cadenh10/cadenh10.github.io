@@ -1,4 +1,64 @@
+import { useState } from "react";
+import { getWaitlistAttribution } from "../lib/attribution.js";
+import { supabase, isSupabaseConfigured } from "../lib/supabase.js";
+
 export default function FinalSection() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+
+  function clearFeedback() {
+    setFeedback(null);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) {
+      setFeedback({ kind: "error", message: "Enter a valid email address." });
+      return;
+    }
+
+    if (!isSupabaseConfigured() || !supabase) {
+      setFeedback({
+        kind: "error",
+        message: "Waitlist is temporarily unavailable. Please try again later.",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    setFeedback(null);
+
+    const attr = getWaitlistAttribution();
+    const { error } = await supabase.from("waitlist_signups").insert({
+      email: trimmed,
+      source: attr.source,
+      utm_source: attr.utm_source,
+      utm_medium: attr.utm_medium,
+      utm_campaign: attr.utm_campaign,
+      referrer: attr.referrer,
+    });
+
+    setSubmitting(false);
+
+    if (!error) {
+      setFeedback({ kind: "success" });
+      setEmail("");
+      return;
+    }
+
+    if (error.code === "23505") {
+      setFeedback({ kind: "duplicate" });
+      return;
+    }
+
+    setFeedback({
+      kind: "error",
+      message: "Something went wrong. Please try again.",
+    });
+  }
+
   return (
     <div className="relative bg-black">
       {/* Ambient glow — matches hero / premium depth */}
@@ -78,7 +138,7 @@ export default function FinalSection() {
 
             <form
               className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-center sm:gap-3"
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={handleSubmit}
             >
               <label htmlFor="waitlist-email" className="sr-only">
                 Email address
@@ -89,16 +149,46 @@ export default function FinalSection() {
                 type="email"
                 autoComplete="email"
                 placeholder="you@email.com"
-                className="min-h-[48px] w-full min-w-0 flex-1 rounded-full border border-zinc-800 bg-zinc-950/90 px-5 py-3 text-sm text-white placeholder:text-zinc-600 outline-none ring-emerald-500/0 transition-[box-shadow,border-color] focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20 sm:max-w-none"
+                value={email}
+                onChange={(ev) => {
+                  setEmail(ev.target.value);
+                  if (feedback) clearFeedback();
+                }}
+                disabled={submitting}
+                className="min-h-[48px] w-full min-w-0 flex-1 rounded-full border border-zinc-800 bg-zinc-950/90 px-5 py-3 text-sm text-white placeholder:text-zinc-600 outline-none ring-emerald-500/0 transition-[box-shadow,border-color] focus:border-emerald-500/40 focus:ring-2 focus:ring-emerald-500/20 disabled:opacity-60 sm:max-w-none"
               />
               <button
                 type="submit"
-                className="min-h-[48px] shrink-0 rounded-full bg-emerald-500 px-8 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 sm:px-10"
+                disabled={submitting}
+                className="min-h-[48px] shrink-0 rounded-full bg-emerald-500 px-8 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60 sm:px-10"
               >
-                Join waitlist
+                {submitting ? "Joining…" : "Join waitlist"}
               </button>
             </form>
-            <p className="mt-4 text-xs text-zinc-600">No spam. Early access only.</p>
+
+            {feedback?.kind === "success" && (
+              <p className="mt-4 text-sm text-emerald-400/95" role="status">
+                You&apos;re on the list.
+              </p>
+            )}
+            {feedback?.kind === "duplicate" && (
+              <p className="mt-4 text-sm text-zinc-400" role="status">
+                This email is already on the waitlist.
+              </p>
+            )}
+            {feedback?.kind === "error" && (
+              <p className="mt-4 text-sm text-red-400/90" role="alert">
+                {feedback.message}
+              </p>
+            )}
+
+            <p
+              className={
+                feedback ? "mt-3 text-xs text-zinc-600" : "mt-4 text-xs text-zinc-600"
+              }
+            >
+              No spam. Early access only.
+            </p>
           </div>
         </section>
       </div>
