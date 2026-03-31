@@ -5,7 +5,11 @@ export default function TopNav() {
     <header className="sticky top-0 z-50 w-full bg-black">
       <div className="mx-auto flex h-14 w-full max-w-screen-xl items-center justify-between px-6 md:h-16 md:px-10 lg:px-12">
         <Link to="/" className="text-lg font-semibold tracking-tight text-white">
-          dialed
+          <img
+            src={`${import.meta.env.BASE_URL}logo.svg`}
+            alt="Dialed logo"
+            className="h-6 w-auto object-contain"
+          />
         </Link>
         <a
           href="#waitlist"
