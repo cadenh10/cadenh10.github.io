@@ -26,7 +26,10 @@ export default function HeroSection() {
           >
             Join the waitlist
           </a>
-          <p className="mt-4 text-xs text-zinc-600">Be first to access Dialed</p>
+          <p className="mt-1.5 max-w-lg text-[11px] leading-snug text-zinc-600 md:text-xs">
+            Camera processing happens locally. No video is recorded or uploaded.
+          </p>
+          <p className="mt-3 text-xs text-zinc-600">Be first to access Dialed</p>
         </div>
 
         {/* Outer: pb reserves space below the frame; inner is the positioning context so bottom-0 aligns to the image, not the padding box */}

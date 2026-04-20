@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { getWaitlistAttribution } from "../lib/attribution.js";
 import { supabase, isSupabaseConfigured } from "../lib/supabase.js";
 
@@ -196,7 +197,15 @@ export default function FinalSection() {
       {/* 4. Footer */}
       <footer className="border-t border-white/[0.06] bg-black">
         <div className="mx-auto flex w-full max-w-screen-xl flex-col items-center justify-between gap-4 px-6 py-12 text-xs text-zinc-600 sm:flex-row md:px-10 md:py-14 lg:px-12">
-          <p>© 2026 Dialed. All rights reserved.</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <p>© 2026 Dialed. All rights reserved.</p>
+            <Link to="/privacy" className="hover:text-zinc-500">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="hover:text-zinc-500">
+              Terms of Service
+            </Link>
+          </div>
           <p className="font-medium tracking-tight text-zinc-600">dialed</p>
         </div>
       </footer>
