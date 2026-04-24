@@ -5,4 +5,24 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background-color: #000;
+  color: #fff;
+  text-rendering: optimizeLegibility;
+}
+
+/* Slightly tighter letter-spacing for large display headings. */
+h1,
+h2 {
+  letter-spacing: -0.02em;
 }
