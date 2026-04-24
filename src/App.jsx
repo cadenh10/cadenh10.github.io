@@ -6,6 +6,7 @@ import Terms from "./pages/Terms.jsx";
 import BillingSuccess from "./pages/BillingSuccess.jsx";
 import BillingCancel from "./pages/BillingCancel.jsx";
 import Settings from "./pages/Settings.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/billing/success" element={<BillingSuccess />} />
         <Route path="/billing/cancel" element={<BillingCancel />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
       </Routes>
     </BrowserRouter>
   );
