@@ -8,7 +8,11 @@ if (typeof window !== "undefined") {
   const redirectPath = currentUrl.searchParams.get("redirect");
   if (redirectPath) {
     const normalizedPath = redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`;
-    window.history.replaceState({}, "", `${normalizedPath}${window.location.hash}`);
+    const passthroughParams = new URLSearchParams(currentUrl.search);
+    passthroughParams.delete("redirect");
+    const passthroughQuery = passthroughParams.toString();
+    const nextUrl = `${normalizedPath}${passthroughQuery ? `?${passthroughQuery}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
   }
 }
 

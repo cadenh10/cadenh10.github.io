@@ -28,6 +28,7 @@
     <script>
       (function redirectToSpa() {
         var target = "/?redirect=" + encodeURIComponent("/auth/reset-password");
+        if (window.location.search) target += "&" + window.location.search.slice(1);
         if (window.location.hash) target += window.location.hash;
         window.location.replace(target);
       })();

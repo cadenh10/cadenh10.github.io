@@ -25,6 +25,9 @@ const STATUS = {
   UNCONFIGURED: "unconfigured",
 };
 
+const DEV = import.meta.env.DEV;
+const RESET_REDIRECT_URL = "https://workdialed.me/auth/reset-password";
+
 function getRecoveryParams() {
   if (typeof window === "undefined") return {};
   const query = new URLSearchParams(window.location.search);
@@ -37,12 +40,10 @@ function getRecoveryParams() {
     code: query.get("code"),
     tokenHash: query.get("token_hash"),
     type: query.get("type") || hash.get("type"),
-    accessToken: hash.get("access_token"),
-    refreshToken: hash.get("refresh_token"),
+    hasAccessToken: Boolean(hash.get("access_token")),
+    hasRefreshToken: Boolean(hash.get("refresh_token")),
     error: query.get("error") || hash.get("error"),
     errorCode: query.get("error_code") || hash.get("error_code"),
-    errorDescription:
-      query.get("error_description") || hash.get("error_description"),
   };
 }
 
@@ -56,6 +57,10 @@ function validatePassword(pw) {
   return null;
 }
 
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
 export default function ResetPassword() {
   const navigate = useNavigate();
   const [status, setStatus] = useState(
@@ -66,6 +71,9 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [requestEmail, setRequestEmail] = useState("");
+  const [requestStatus, setRequestStatus] = useState("idle");
+  const [requestMessage, setRequestMessage] = useState(null);
 
   useEffect(() => {
     if (!supabase) return undefined;
@@ -79,48 +87,42 @@ export default function ResetPassword() {
     };
 
     const initialize = async () => {
-      console.info("[ResetPassword] reset page loaded");
+      if (DEV) console.info("[ResetPassword] reset page loaded");
       const {
         code,
         tokenHash,
         type,
-        accessToken,
-        refreshToken,
+        hasAccessToken,
+        hasRefreshToken,
         error,
         errorCode,
-        errorDescription,
       } = getRecoveryParams();
 
-      if (error || errorCode || errorDescription) {
-        console.info("[ResetPassword] error link detected");
-        const decoded = errorDescription ? decodeURIComponent(errorDescription) : "";
-        const friendlyMessage =
-          errorCode === "otp_expired" ? "Reset link expired" : decoded || "Invalid reset link.";
+      if (error || errorCode) {
+        if (DEV) console.info("[ResetPassword] error link detected");
+        const friendlyMessage = errorCode === "otp_expired" ? "Reset link expired" : null;
         finalize(STATUS.EXPIRED, friendlyMessage);
         return;
       }
 
       try {
-        if (type === "recovery" && accessToken && refreshToken) {
-          console.info("[ResetPassword] recovery link detected");
-          const { error: setSessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (setSessionError) throw setSessionError;
-
-          const cleanUrl = `${window.location.pathname}${window.location.search}`;
-          window.history.replaceState({}, document.title, cleanUrl);
-        } else if (code) {
+        if (code) {
+          if (DEV) console.info("[ResetPassword] exchanging recovery code");
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
         } else if (tokenHash && type === "recovery") {
-          console.info("[ResetPassword] recovery link detected");
+          if (DEV) console.info("[ResetPassword] verifying recovery token hash");
           const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: "recovery",
           });
           if (error) throw error;
+        } else if (type === "recovery" && hasAccessToken && hasRefreshToken) {
+          if (DEV) {
+            console.info(
+              "[ResetPassword] hash recovery params detected; awaiting Supabase session restoration"
+            );
+          }
         }
 
         const { data, error } = await supabase.auth.getSession();
@@ -143,7 +145,8 @@ export default function ResetPassword() {
           }
         }, 800);
       } catch (err) {
-        finalize(STATUS.EXPIRED, err?.message || null);
+        if (DEV) console.error("[ResetPassword] recovery initialization failed", err);
+        finalize(STATUS.EXPIRED);
       }
     };
 
@@ -212,6 +215,37 @@ export default function ResetPassword() {
     [password, confirmPassword]
   );
 
+  const onRequestResetLink = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!supabase) return;
+
+      const normalizedEmail = requestEmail.trim();
+      setRequestMessage(null);
+
+      if (!validateEmail(normalizedEmail)) {
+        setRequestMessage("Enter a valid email address.");
+        return;
+      }
+
+      setRequestStatus("submitting");
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: RESET_REDIRECT_URL,
+      });
+
+      if (error) {
+        if (DEV) console.error("[ResetPassword] resend reset link failed", error);
+        setRequestStatus("idle");
+        setRequestMessage("Could not send reset link. Please try again in a moment.");
+        return;
+      }
+
+      setRequestStatus("sent");
+      setRequestMessage("If that email exists, we sent a new password reset link.");
+    },
+    [requestEmail]
+  );
+
   return (
     <div className="min-h-screen w-full bg-black text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col justify-center px-6 py-16 md:py-20">
@@ -239,7 +273,16 @@ export default function ResetPassword() {
 
             {status === STATUS.VERIFYING && <VerifyingState />}
 
-            {status === STATUS.EXPIRED && <ExpiredState message={flowError} />}
+            {status === STATUS.EXPIRED && (
+              <ExpiredState
+                message={flowError}
+                email={requestEmail}
+                onEmailChange={setRequestEmail}
+                onSubmit={onRequestResetLink}
+                requestStatus={requestStatus}
+                requestMessage={requestMessage}
+              />
+            )}
 
             {status === STATUS.SUCCESS && (
               <SuccessState onReturn={() => navigate("/")} />
@@ -431,7 +474,14 @@ function VerifyingState() {
   );
 }
 
-function ExpiredState({ message }) {
+function ExpiredState({
+  message,
+  email,
+  onEmailChange,
+  onSubmit,
+  requestStatus,
+  requestMessage,
+}) {
   const isExpired = message === "Reset link expired";
   return (
     <div className="space-y-4">
@@ -440,9 +490,40 @@ function ExpiredState({ message }) {
           ? "Reset link expired. Please request a new one."
           : "This reset link is invalid or no longer available."}
       </p>
-      {message && !isExpired && (
-        <p className="text-xs text-zinc-500">Details: {message}</p>
-      )}
+      <p className="text-xs text-zinc-500">
+        Enter your email and we will send you a fresh reset link.
+      </p>
+      <form onSubmit={onSubmit} className="space-y-3" noValidate>
+        <Field
+          id="reset-request-email"
+          label="Email"
+          type="email"
+          value={email}
+          onChange={onEmailChange}
+          autoComplete="email"
+          placeholder="you@company.com"
+          disabled={requestStatus === "submitting"}
+        />
+        {requestMessage && (
+          <p
+            role="status"
+            className={`rounded-md border px-3 py-2 text-xs ${
+              requestStatus === "sent"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                : "border-red-500/40 bg-red-500/10 text-red-300"
+            }`}
+          >
+            {requestMessage}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={requestStatus === "submitting"}
+          className="inline-flex w-full items-center justify-center rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-600/30 disabled:text-black/60"
+        >
+          {requestStatus === "submitting" ? "Sending…" : "Send new reset link"}
+        </button>
+      </form>
       <div className="flex flex-col items-start gap-3">
         <Link
           to="/"
@@ -450,12 +531,6 @@ function ExpiredState({ message }) {
         >
           Return to Dialed
         </Link>
-        <a
-          href="mailto:workdialed@gmail.com?subject=Dialed%20password%20reset%20help"
-          className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
-        >
-          Request a new reset link
-        </a>
       </div>
     </div>
   );
