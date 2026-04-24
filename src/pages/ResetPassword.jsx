@@ -98,6 +98,7 @@ export default function ResetPassword() {
     };
 
     const initialize = async () => {
+      console.log("AUTH SUPABASE URL:", import.meta.env.VITE_SUPABASE_URL);
       if (DEV) {
         console.info("[ResetPassword] VITE_SUPABASE_URL:", SUPABASE_URL);
       }
