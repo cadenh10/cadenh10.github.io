@@ -8,12 +8,11 @@ import { supabase, isSupabaseConfigured } from "../lib/supabase.js";
  * already be signed in:
  *
  *   1. PKCE flow:          /auth/reset-password?code=<code>
- *   2. Token-hash flow:    /auth/reset-password?token_hash=<hash>&type=recovery
- *   3. Implicit (legacy):  /auth/reset-password#access_token=...&type=recovery
+ *   2. Implicit (legacy):  /auth/reset-password#access_token=...&type=recovery
  *
- * In (3) the Supabase client auto-detects the fragment and emits a
- * PASSWORD_RECOVERY auth event. In (1) and (2) we must exchange the token
- * ourselves before the session is usable.
+ * In (2) the Supabase client auto-detects the fragment and emits a
+ * PASSWORD_RECOVERY auth event. We also perform a setSession fallback when
+ * access/refresh tokens are present but session restoration has not completed yet.
  */
 
 const STATUS = {
@@ -38,8 +37,9 @@ function getRecoveryParams() {
   );
   return {
     code: query.get("code"),
-    tokenHash: query.get("token_hash"),
     type: query.get("type") || hash.get("type"),
+    accessToken: hash.get("access_token"),
+    refreshToken: hash.get("refresh_token"),
     hasAccessToken: Boolean(hash.get("access_token")),
     hasRefreshToken: Boolean(hash.get("refresh_token")),
     error: query.get("error") || hash.get("error"),
@@ -90,13 +90,17 @@ export default function ResetPassword() {
       if (DEV) console.info("[ResetPassword] reset page loaded");
       const {
         code,
-        tokenHash,
         type,
+        accessToken,
+        refreshToken,
         hasAccessToken,
         hasRefreshToken,
         error,
         errorCode,
       } = getRecoveryParams();
+      if (DEV) {
+        console.info(`[ResetPassword] code param present: ${Boolean(code)}`);
+      }
 
       if (error || errorCode) {
         if (DEV) console.info("[ResetPassword] error link detected");
@@ -107,21 +111,26 @@ export default function ResetPassword() {
 
       try {
         if (code) {
-          if (DEV) console.info("[ResetPassword] exchanging recovery code");
+          if (DEV) console.info("[ResetPassword] exchangeCodeForSession started");
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
-        } else if (tokenHash && type === "recovery") {
-          if (DEV) console.info("[ResetPassword] verifying recovery token hash");
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: tokenHash,
-            type: "recovery",
-          });
-          if (error) throw error;
+          if (DEV) console.info("[ResetPassword] exchangeCodeForSession succeeded");
         } else if (type === "recovery" && hasAccessToken && hasRefreshToken) {
           if (DEV) {
             console.info(
               "[ResetPassword] hash recovery params detected; awaiting Supabase session restoration"
             );
+          }
+
+          // Legacy implicit flow can provide tokens in the fragment. If session
+          // was not auto-restored by Supabase client yet, explicitly restore it.
+          const { data: existingSession } = await supabase.auth.getSession();
+          if (!existingSession?.session && accessToken && refreshToken) {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (error) throw error;
           }
         }
 
@@ -145,7 +154,12 @@ export default function ResetPassword() {
           }
         }, 800);
       } catch (err) {
-        if (DEV) console.error("[ResetPassword] recovery initialization failed", err);
+        if (DEV) {
+          if (code) {
+            console.info("[ResetPassword] exchangeCodeForSession failed");
+          }
+          console.error("[ResetPassword] recovery initialization failed");
+        }
         finalize(STATUS.EXPIRED);
       }
     };
@@ -201,7 +215,7 @@ export default function ResetPassword() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
         setStatus(STATUS.READY);
-        setFormError(error.message || "Could not update password.");
+        setFormError("Could not update password. Please try the reset link again.");
         return;
       }
 
