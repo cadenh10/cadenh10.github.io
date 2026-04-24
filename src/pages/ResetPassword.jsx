@@ -37,9 +37,12 @@ function getRecoveryParams() {
     code: query.get("code"),
     tokenHash: query.get("token_hash"),
     type: query.get("type") || hash.get("type"),
+    accessToken: hash.get("access_token"),
+    refreshToken: hash.get("refresh_token"),
+    error: query.get("error") || hash.get("error"),
+    errorCode: query.get("error_code") || hash.get("error_code"),
     errorDescription:
       query.get("error_description") || hash.get("error_description"),
-    hasHashSession: Boolean(hash.get("access_token")),
   };
 }
 
@@ -48,6 +51,8 @@ function validatePassword(pw) {
   if (!/[A-Z]/.test(pw)) return "Password must include an uppercase letter.";
   if (!/[a-z]/.test(pw)) return "Password must include a lowercase letter.";
   if (!/[0-9]/.test(pw)) return "Password must include a number.";
+  if (!/[^A-Za-z0-9]/.test(pw))
+    return "Password must include a special character.";
   return null;
 }
 
@@ -74,18 +79,43 @@ export default function ResetPassword() {
     };
 
     const initialize = async () => {
-      const { code, tokenHash, type, errorDescription } = getRecoveryParams();
+      console.info("[ResetPassword] reset page loaded");
+      const {
+        code,
+        tokenHash,
+        type,
+        accessToken,
+        refreshToken,
+        error,
+        errorCode,
+        errorDescription,
+      } = getRecoveryParams();
 
-      if (errorDescription) {
-        finalize(STATUS.EXPIRED, decodeURIComponent(errorDescription));
+      if (error || errorCode || errorDescription) {
+        console.info("[ResetPassword] error link detected");
+        const decoded = errorDescription ? decodeURIComponent(errorDescription) : "";
+        const friendlyMessage =
+          errorCode === "otp_expired" ? "Reset link expired" : decoded || "Invalid reset link.";
+        finalize(STATUS.EXPIRED, friendlyMessage);
         return;
       }
 
       try {
-        if (code) {
+        if (type === "recovery" && accessToken && refreshToken) {
+          console.info("[ResetPassword] recovery link detected");
+          const { error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (setSessionError) throw setSessionError;
+
+          const cleanUrl = `${window.location.pathname}${window.location.search}`;
+          window.history.replaceState({}, document.title, cleanUrl);
+        } else if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
         } else if (tokenHash && type === "recovery") {
+          console.info("[ResetPassword] recovery link detected");
           const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: "recovery",
@@ -263,6 +293,10 @@ export default function ResetPassword() {
                   <Rule ok={/[A-Z]/.test(password)} text="One uppercase letter" />
                   <Rule ok={/[a-z]/.test(password)} text="One lowercase letter" />
                   <Rule ok={/[0-9]/.test(password)} text="One number" />
+                  <Rule
+                    ok={/[^A-Za-z0-9]/.test(password)}
+                    text="One special character"
+                  />
                 </ul>
 
                 {formError && (
@@ -398,27 +432,30 @@ function VerifyingState() {
 }
 
 function ExpiredState({ message }) {
+  const isExpired = message === "Reset link expired";
   return (
     <div className="space-y-4">
       <p className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-        This reset link has expired. Please request a new one.
+        {isExpired
+          ? "Reset link expired. Please request a new one."
+          : "This reset link is invalid or no longer available."}
       </p>
-      {message && (
+      {message && !isExpired && (
         <p className="text-xs text-zinc-500">Details: {message}</p>
       )}
       <div className="flex flex-col items-start gap-3">
-        <a
-          href="dialed://"
-          className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-500"
-        >
-          Open Dialed
-        </a>
         <Link
           to="/"
+          className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-500"
+        >
+          Return to Dialed
+        </Link>
+        <a
+          href="mailto:workdialed@gmail.com?subject=Dialed%20password%20reset%20help"
           className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
         >
-          Return to homepage
-        </Link>
+          Request a new reset link
+        </a>
       </div>
     </div>
   );
