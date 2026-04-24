@@ -26,6 +26,7 @@ const STATUS = {
 
 const DEV = import.meta.env.DEV;
 const RESET_REDIRECT_URL = "https://workdialed.me/auth/reset-password";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 function getRecoveryParams() {
   if (typeof window === "undefined") return {};
@@ -44,6 +45,16 @@ function getRecoveryParams() {
     hasRefreshToken: Boolean(hash.get("refresh_token")),
     error: query.get("error") || hash.get("error"),
     errorCode: query.get("error_code") || hash.get("error_code"),
+  };
+}
+
+function getSafeErrorDetails(err) {
+  if (!err) return null;
+  return {
+    name: typeof err.name === "string" ? err.name : undefined,
+    status: typeof err.status === "number" ? err.status : undefined,
+    code: typeof err.code === "string" ? err.code : undefined,
+    message: typeof err.message === "string" ? err.message : "Unknown error",
   };
 }
 
@@ -87,7 +98,9 @@ export default function ResetPassword() {
     };
 
     const initialize = async () => {
-      if (DEV) console.info("[ResetPassword] reset page loaded");
+      if (DEV) {
+        console.info("[ResetPassword] VITE_SUPABASE_URL:", SUPABASE_URL);
+      }
       const {
         code,
         type,
@@ -99,7 +112,13 @@ export default function ResetPassword() {
         errorCode,
       } = getRecoveryParams();
       if (DEV) {
-        console.info(`[ResetPassword] code param present: ${Boolean(code)}`);
+        console.info(
+          `[ResetPassword] hash has access_token: ${hasAccessToken}`
+        );
+        console.info(
+          `[ResetPassword] hash has refresh_token: ${hasRefreshToken}`
+        );
+        console.info(`[ResetPassword] hash type is recovery: ${type === "recovery"}`);
       }
 
       if (error || errorCode) {
@@ -110,28 +129,17 @@ export default function ResetPassword() {
       }
 
       try {
-        if (code) {
-          if (DEV) console.info("[ResetPassword] exchangeCodeForSession started");
+        // Prioritize legacy hash recovery links because this is the active
+        // Supabase email shape for this project right now.
+        if (type === "recovery" && hasAccessToken && hasRefreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        } else if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
-          if (DEV) console.info("[ResetPassword] exchangeCodeForSession succeeded");
-        } else if (type === "recovery" && hasAccessToken && hasRefreshToken) {
-          if (DEV) {
-            console.info(
-              "[ResetPassword] hash recovery params detected; awaiting Supabase session restoration"
-            );
-          }
-
-          // Legacy implicit flow can provide tokens in the fragment. If session
-          // was not auto-restored by Supabase client yet, explicitly restore it.
-          const { data: existingSession } = await supabase.auth.getSession();
-          if (!existingSession?.session && accessToken && refreshToken) {
-            const { error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            if (error) throw error;
-          }
         }
 
         const { data, error } = await supabase.auth.getSession();
@@ -155,10 +163,10 @@ export default function ResetPassword() {
         }, 800);
       } catch (err) {
         if (DEV) {
-          if (code) {
-            console.info("[ResetPassword] exchangeCodeForSession failed");
-          }
-          console.error("[ResetPassword] recovery initialization failed");
+          console.error(
+            "[ResetPassword] recovery initialization failed",
+            getSafeErrorDetails(err)
+          );
         }
         finalize(STATUS.EXPIRED);
       }
@@ -225,6 +233,10 @@ export default function ResetPassword() {
         // Non-fatal: the user can still sign in again from the app.
       }
       setStatus(STATUS.SUCCESS);
+      if (typeof window !== "undefined" && window.location.hash) {
+        const cleanUrl = `${window.location.pathname}${window.location.search}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
     },
     [password, confirmPassword]
   );
