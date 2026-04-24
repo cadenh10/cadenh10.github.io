@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { getWaitlistAttribution } from "../lib/attribution.js";
 import { supabase, isSupabaseConfigured } from "../lib/supabase.js";
 
-export default function FinalSection() {
+export default function FinalSection({ hasReferralCode = false }) {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -136,6 +136,9 @@ export default function FinalSection() {
             <p className="mt-3 text-base text-zinc-500 md:text-lg">
               Early access for those who take focus seriously.
             </p>
+            {hasReferralCode && (
+              <p className="mt-2 text-xs font-medium text-emerald-400/95">Referral applied</p>
+            )}
 
             <form
               className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-center sm:gap-3"

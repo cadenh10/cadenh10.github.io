@@ -1,4 +1,4 @@
-export default function HeroSection() {
+export default function HeroSection({ hasReferralCode = false }) {
   return (
     <section className="relative isolate overflow-visible pb-16 pt-10 md:pb-24 md:pt-12 lg:pb-24">
       {/* Full-bleed ambient layer — sibling to content, never inside max-width/clipped wrappers */}
@@ -26,6 +26,9 @@ export default function HeroSection() {
           >
             Join the waitlist
           </a>
+          {hasReferralCode && (
+            <p className="mt-2 text-xs font-medium text-emerald-400/95">Referral applied</p>
+          )}
           <p className="mt-1.5 max-w-lg text-[11px] leading-snug text-zinc-600 md:text-xs">
             Camera processing happens locally. No video is recorded or uploaded.
           </p>
