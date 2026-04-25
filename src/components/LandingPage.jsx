@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import FeaturesSection from "./FeaturesSection.jsx";
-import FocusSignalSection from "./FocusSignalSection.jsx";
 import FinalSection from "./FinalSection.jsx";
 import HeroSection from "./HeroSection.jsx";
+import HowItWorksSection from "./HowItWorksSection.jsx";
+import PrivacySection from "./PrivacySection.jsx";
 import TopNav from "./TopNav.jsx";
 import { getStoredReferralCode } from "../lib/referral.js";
 
@@ -14,12 +15,15 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-black text-white">
+    <div className="min-h-screen w-full bg-black text-white antialiased">
       <TopNav />
-      <HeroSection hasReferralCode={hasReferralCode} />
-      <FeaturesSection />
-      <FocusSignalSection />
-      <FinalSection hasReferralCode={hasReferralCode} />
+      <main>
+        <HeroSection hasReferralCode={hasReferralCode} />
+        <HowItWorksSection />
+        <FeaturesSection />
+        <PrivacySection />
+        <FinalSection hasReferralCode={hasReferralCode} />
+      </main>
     </div>
   );
 }
