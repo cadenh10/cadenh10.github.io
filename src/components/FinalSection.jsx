@@ -38,7 +38,6 @@ export default function FinalSection() {
               <a
                 href={DOWNLOAD_URL}
                 className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-emerald-500 px-8 py-3 text-sm font-semibold text-black transition-colors hover:bg-emerald-400"
-                download
               >
                 Download for Mac
               </a>

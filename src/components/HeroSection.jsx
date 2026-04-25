@@ -32,7 +32,6 @@ export default function HeroSection({ hasReferralCode = false }) {
             <a
               href={DOWNLOAD_URL}
               className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-emerald-500 px-8 py-3.5 text-sm font-semibold text-black shadow-[0_10px_40px_-12px_rgba(16,185,129,0.55)] transition-colors hover:bg-emerald-400 sm:px-10"
-              download
             >
               Download for Mac
             </a>

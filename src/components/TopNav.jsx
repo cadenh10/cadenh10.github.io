@@ -38,7 +38,6 @@ export default function TopNav() {
         <a
           href={DOWNLOAD_URL}
           className="inline-flex min-h-[36px] items-center rounded-full bg-emerald-500 px-4 py-1.5 text-sm font-semibold text-black transition-colors hover:bg-emerald-400 md:px-5"
-          download
         >
           Download
         </a>
