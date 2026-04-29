@@ -26,3 +26,8 @@ h1,
 h2 {
   letter-spacing: -0.02em;
 }
+
+#download-scroll-target {
+  height: 1px;
+  scroll-margin-top: 140px;
+}

@@ -1,6 +1,11 @@
-import { DOWNLOAD_URL } from "../lib/constants.js";
+import { scrollToDownload } from "../lib/scroll.js";
 
 export default function HeroSection({ hasReferralCode = false }) {
+  const handleScrollToDownload = (event) => {
+    event.preventDefault();
+    scrollToDownload();
+  };
+
   return (
     <section className="relative isolate overflow-visible pb-16 pt-10 md:pb-24 md:pt-14 lg:pb-28">
       {/* Full-bleed ambient glow — sibling to content, never clipped by max-width wrappers */}
@@ -30,10 +35,11 @@ export default function HeroSection({ hasReferralCode = false }) {
           </p>
           <div className="mt-10 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             <a
-              href={DOWNLOAD_URL}
+              href="#download-scroll-target"
+              onClick={handleScrollToDownload}
               className="inline-flex min-h-[48px] items-center justify-center rounded-full bg-emerald-500 px-8 py-3.5 text-sm font-semibold text-black shadow-[0_10px_40px_-12px_rgba(16,185,129,0.55)] transition-colors hover:bg-emerald-400 sm:px-10"
             >
-              Download for Mac
+              Get Dialed
             </a>
             <a
               href="#how-it-works"
